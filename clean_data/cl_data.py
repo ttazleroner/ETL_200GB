@@ -33,6 +33,9 @@ spark.sparkContext.setLogLevel('WARN')
 
 raw_data = 's3a://raw-bronze/landing/p2p_transfers/*.csv'
 
+
+rename_dict = ('Unknown')
+
 ddl_schema = "tx_id STRING, sender_id STRING, receiver_id STRING, amount DOUBLE, currency STRING, status STRING, timestamp LONG"
 
 df = spark.read.csv(raw_data, header=True, schema=ddl_schema)
@@ -42,6 +45,10 @@ df = (df
     .withColumn('timestamp', F.from_unixtime(F.col('timestamp')).cast('timestamp'))
     .withColumn('sender_id', F.regexp_replace(F.col('sender_id'), r'\s+', ''))
     .withColumn('receiver_id', F.regexp_replace(F.col('receiver_id'), r'\s+', ''))
+    .withColumn('amount', F.regexp_replace(F.col('amount'), ',', '.').cast('double'))
+    .withColumn('timestamp', F.coalesce(F.col('timestamp'), F.lit('1970-01-01 00:00:00')))
 )
 df = df.fillna('1970-01-01 00:00:00', subset=['timestamp'])
+df = df.fillna({'status': 'Unknown'})
+
 df.show(5)
