@@ -1,1 +1,6 @@
 .env
+.minio_data
+.kafka_data
+generate_fake_data.py
+.ipynb_checkpoints
+tempCodeRunnerFile.py
