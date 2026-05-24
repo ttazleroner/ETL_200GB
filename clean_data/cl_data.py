@@ -42,7 +42,6 @@ ddl_schema = "tx_id STRING, sender_id STRING, receiver_id STRING, amount DOUBLE,
 df = spark.read.csv(raw_data, header=True, schema=ddl_schema)
 
 
-
 df = (df
     .withColumn('timestamp', F.from_unixtime(F.col('timestamp')).cast('timestamp'))
     .withColumn('sender_id', F.regexp_replace(F.col('sender_id'), r'\s+', ''))
@@ -51,10 +50,12 @@ df = (df
     .withColumn('timestamp', F.coalesce(F.col('timestamp'), F.lit('1970-01-01 00:00:00')))
     .withColumn('status', F.coalesce(F.col('status'), F.lit('Unknown')))
 ) 
-df = df.fiikllna('1970-01-01 00:00:00', subset=['timestamp'])
+df = df.fillna('1970-01-01 00:00:00', subset=['timestamp'])
 df = df.dropDuplicates(['tx_id',])
 df = df.replace(['', 'N/A', 'NULL ', 'NULL'], 'Unknown', subset=['status'])
 df = df.sort(F.col('sender_id').asc())
-df = df.na.drop()
-df.writeTo('demo.db.p2p_silver').append()
+df_kruto = df.filter((F.col("amount") > 0) & (F.col("status").isNotNull()))
+df_zalupa = df.filter((F.col("amount") <= 0) | (F.col("status").isNull()))
+df_dlq = df_zalupa.withColumn("dlq_processed_at", F.current_timestamp())
+df_dlq.write.mode("append").parquet("s3a://raw-bronze/logical_dlq/")
 df.show(5)
