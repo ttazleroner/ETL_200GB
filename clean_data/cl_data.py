@@ -31,11 +31,14 @@ print('запускаемся')
 
 spark.sparkContext.setLogLevel('WARN')
 
-raw_data = 's3a://raw-bronze/landing/p2p_transfers/*.csv'
+# 's3a://raw-bronze/landing/p2p_transfers/*.csv'
+raw_data = "s3a://raw-bronze/landing/p2p_transfers/chunk_1.csv"
 dlq_data = 's3a://raw-bronze/dlq/dlq_transfers/'
 
 
 rename_dict = ('Unknown')
+
+column_kolonki = ['tx_id', 'sender_id', 'timestamp', 'status', 'receiver_id', 'amount', 'currency']
 
 ddl_schema = "tx_id STRING, sender_id STRING, receiver_id STRING, amount DOUBLE, currency STRING, status STRING, timestamp LONG"
 
@@ -49,13 +52,27 @@ df = (df
     .withColumn('amount', F.regexp_replace(F.col('amount'), ',', '.').cast('double'))
     .withColumn('timestamp', F.coalesce(F.col('timestamp'), F.lit('1970-01-01 00:00:00')))
     .withColumn('status', F.coalesce(F.col('status'), F.lit('Unknown')))
+    .withColumn('status', F.trim(F.col('status')))
 ) 
+for kolonki in column_kolonki:
+    df = df.withColumn(kolonki, F.trim(F.col(kolonki)))
 df = df.fillna('1970-01-01 00:00:00', subset=['timestamp'])
 df = df.dropDuplicates(['tx_id',])
 df = df.replace(['', 'N/A', 'NULL ', 'NULL'], 'Unknown', subset=['status'])
 df = df.sort(F.col('sender_id').asc())
-df_kruto = df.filter((F.col("amount") > 0) & (F.col("status").isNotNull()))
-df_zalupa = df.filter((F.col("amount") <= 0) | (F.col("status").isNull()))
+df_kruto = df.filter(
+    (F.col('amount') > 0) & 
+    (F.col('status').isNotNull()) &
+    (F.col('status') != 'Unknown') &
+    (F.col('timestamp') > '1970-01-01 00:00:00')
+)
+df_zalupa = df.filter(
+    (F.col('amount') < 0) |
+    (F.col('status').isNull()) |
+    (F.col('status') == 'Unknown') |
+    (F.col('timestamp') < '1970-01-01 00:00:00') |
+    (F.col('timestamp').isNull())
+)
 df_dlq = df_zalupa.withColumn("dlq_processed_at", F.current_timestamp())
 df_dlq.write.mode("append").parquet("s3a://raw-bronze/logical_dlq/")
 df.show(5)
