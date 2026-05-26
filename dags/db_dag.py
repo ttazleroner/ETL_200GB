@@ -10,6 +10,14 @@ import dotenv
 from botocore.client import Config
 import shutil
 
+def_args = {
+    'owner': 'главный',
+    'depends_on_past': False,
+    'email_on_failure': False,
+    'email_on_retry': False,
+    'retries': 2,
+    'retry_delay': timedelta(seconds=25)
+}
 
 def end_message():
     print('данные готовы')
