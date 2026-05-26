@@ -4,7 +4,7 @@ import os
 
 minio_access_key = os.getenv("AWS_ACCESS_KEY_ID", "admin")
 minio_secret_key = os.getenv("AWS_SECRET_ACCESS_KEY", "adminadmin")
-db_pass = os.getenv("ICEBERG_DB_PASS")
+DB_PASS = "airflow"
 
 ICEBERG_PACKAGES = [
     "org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.5.2",
@@ -16,14 +16,14 @@ ICEBERG_PACKAGES = [
 spark = SparkSession.builder \
     .appName("IcebergTesting") \
     .config("spark.jars.packages", ",".join(ICEBERG_PACKAGES)) \
-    .config("spark.sql.catalog.demo.jdbc.password", db_pass) \
+    .config("spark.sql.catalog.demo.jdbc.password", DB_PASS) \
     .config("spark.sql.catalog.demo.jdbc.schema-version", "V1") \
     \
     .config("spark.sql.catalog.demo", "org.apache.iceberg.spark.SparkCatalog") \
     .config("spark.sql.catalog.demo.type", "jdbc") \
     .config("spark.sql.catalog.demo.uri", "jdbc:postgresql://postgres:5432/airflow") \
     .config("spark.sql.catalog.demo.jdbc.user", "airflow") \
-    .config("spark.sql.catalog.demo.warehouse", "s3a://gold-bucket/warehouse") \
+    .config("spark.sql.catalog.demo.warehouse", "s3a://raw-bronze/warehouse") \
     .config("spark.sql.catalog.demo.io-impl", "org.apache.iceberg.hadoop.HadoopFileIO") \
     \
     .config("spark.hadoop.fs.s3a.endpoint", "http://minio:9000") \
@@ -52,7 +52,7 @@ spark.sql("""
 """)
 
 spark.sql("""
-    ALTER TABLE demo.db.transactions SET TBLPROPERTIES (
+    ALTER TABLE demo.p2p_transfers SET TBLPROPERTIES (
         'write.target-file-size-bytes' = '134217728',
         'write.distribution-mode' = 'hash',
         'write.spark.fanout.enabled' = 'true'
@@ -70,14 +70,13 @@ df_iceberg = df.select(
     F.col('currency').cast('string'),
     F.col('status').cast('string'),
     F.col('timestamp').cast('timestamp'),
-    F.current_timestamp().alias('processed_at')
 )
 
 df_iceberg.writeTo("demo.p2p_transfers").append()
 print('данные в iceberg')
 
 #очистка
-spark.sql("CALL demo.system.rewrite_data_files(table => demo.p2p_transfers')")
+spark.sql("CALL demo.system.rewrite_data_files(table => 'demo.p2p_transfers')")
 spark.sql("CALL demo.system.expire_snapshots(table => 'demo.p2p_transfers', retain_last => 5)")
 spark.sql("CALL demo.system.remove_orphan_files(table => 'demo.p2p_transfers')")
 
