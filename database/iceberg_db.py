@@ -84,4 +84,4 @@ spark.sql("CALL demo.system.remove_orphan_files(table => 'demo.p2p_transfers')")
 spark.sql("""
     SELECT file_path, record_count, file_size_in_bytes, partition 
     FROM demo.p2p_transfers.files
-""").show(truncate=False)
+""").show(truncate=False) 

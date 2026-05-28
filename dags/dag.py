@@ -13,11 +13,7 @@ import shutil
 
 def_args = {
     'owner': 'главный',
-    'depends_on_past': False,
-    'email_on_failure': False,
-    'email_on_retry': False,
-    'retries': 2,
-    'retry_delay': timedelta(seconds=25)
+    'start_date': datetime(2026,1,1)
 }
 
 def minio_data():
