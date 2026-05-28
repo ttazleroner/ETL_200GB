@@ -36,8 +36,9 @@ spark = SparkSession.builder \
     .getOrCreate()
 
 spark.sql("""
-    CREATE OR REPLACE VIEW demo.p2p_transfers_view AS]
+    CREATE OR REPLACE VIEW demo.p2p_transfers_view AS
     SELECT tx_id, amount, currency, status, timestamp
+    FROM demo.p2p_transfers
 """)
 
 spark.sql("""
@@ -46,4 +47,5 @@ spark.sql("""
 
 spark.sql("""
     SELECT file_path, record_count FROM demo.p2p_transfers.files
+    FROM demo.p2p_transfers
 """)

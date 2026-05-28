@@ -24,7 +24,7 @@ check_table = (
     "org.apache.hadoop:hadoop-aws:3.3.4,"
     "com.amazonaws:aws-java-sdk-bundle:1.12.262,"
     "org.postgresql:postgresql:42.6.0 "
-    "/home/jovyan/work/dags/checkicedb.py"
+    "/home/jovyan/work/database/iceberg_db.py"
 )
 
 def start_msg():
