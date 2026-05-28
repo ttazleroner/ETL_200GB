@@ -73,6 +73,29 @@ df_zalupa = df.filter(
     (F.col('timestamp') < '1970-01-01 00:00:00') |
     (F.col('timestamp').isNull())
 )
+
+
+
+
+
+
+df_final = df_kruto.select(
+    F.col("tx_id").cast("string"),
+    F.col("sender_id").cast("string"),
+    F.col("receiver_id").cast("string"),
+    F.col("amount").cast("double"),
+    F.col("currency").cast("string"),
+    F.col("status").cast("string"),
+    F.col("timestamp").cast("timestamp")
+)
+
+
+
+
+
+
+
 df_dlq = df_zalupa.withColumn("dlq_processed_at", F.current_timestamp())
 df_dlq.write.mode("append").parquet("s3a://raw-bronze/logical_dlq/")
+df_final.writeTo('demo.p2p_transfers').append()
 df.show(5)
