@@ -37,6 +37,8 @@ spark = SparkSession.builder \
 
 print('iceberg is already used')
 
+spark.sql("""DROP TABLE IF EXISTS demo.p2p_transfers""")
+
 spark.sql("""
     CREATE TABLE IF NOT EXISTS demo.p2p_transfers (
         tx_id STRING,
@@ -59,22 +61,6 @@ spark.sql("""
     )
 """)
 
-minio_data = "s3a://raw-bronze/landing/p2p_transfers/chunk_1.csv"
-df = spark.read.option('header', 'true').option('inferSchema', 'true').csv(minio_data)
-
-df_iceberg = df.select(
-    F.col('tx_id').cast('string'),
-    F.col('sender_id').cast('string'),
-    F.col('receiver_id').cast('string'),
-    F.col('amount').cast('double'),
-    F.col('currency').cast('string'),
-    F.col('status').cast('string'),
-    F.col('timestamp').cast('timestamp'),
-)
-
-df_iceberg.writeTo("demo.p2p_transfers").append()
-print('данные в iceberg')
-
 #очистка
 spark.sql("CALL demo.system.rewrite_data_files(table => 'demo.p2p_transfers')")
 spark.sql("CALL demo.system.expire_snapshots(table => 'demo.p2p_transfers', retain_last => 5)")
@@ -85,3 +71,5 @@ spark.sql("""
     SELECT file_path, record_count, file_size_in_bytes, partition 
     FROM demo.p2p_transfers.files
 """).show(truncate=False) 
+
+spark.sql("""SELECT * FROM demo.p2p_transfers LIMIT 20""").show(truncate=False)

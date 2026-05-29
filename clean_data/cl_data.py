@@ -58,7 +58,7 @@ for kolonki in column_kolonki:
     df = df.withColumn(kolonki, F.trim(F.col(kolonki)))
 df = df.fillna('1970-01-01 00:00:00', subset=['timestamp'])
 df = df.dropDuplicates(['tx_id',])
-df = df.replace(['', 'N/A', 'NULL ', 'NULL'], 'Unknown', subset=['status'])
+df = df.replace(['', 'N/A', 'NULL ', 'NULL', ' NULL', ' null', ' '], 'Unknown', subset=['status'])
 df = df.sort(F.col('sender_id').asc())
 df_kruto = df.filter(
     (F.col('amount') > 0) & 
