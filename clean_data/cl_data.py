@@ -78,7 +78,6 @@ df_zalupa = df.filter(
 
 
 
-
 df_final = df_kruto.select(
     F.col("tx_id").cast("string"),
     F.col("sender_id").cast("string"),
@@ -88,8 +87,6 @@ df_final = df_kruto.select(
     F.col("status").cast("string"),
     F.col("timestamp").cast("timestamp")
 )
-
-
 
 
 
