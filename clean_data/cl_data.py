@@ -40,7 +40,7 @@ rename_dict = ('Unknown')
 
 column_kolonki = ['tx_id', 'sender_id', 'timestamp', 'status', 'receiver_id', 'amount', 'currency']
 
-ddl_schema = "tx_id STRING, sender_id STRING, receiver_id STRING, amount DOUBLE, currency STRING, status STRING, timestamp LONG"
+ddl_schema = "tx_id STRING, sender_id STRING, receiver_id STRING, amount STRING, currency STRING, status STRING, timestamp LONG"
 
 df = spark.read.csv(raw_data, header=True, schema=ddl_schema)
 
