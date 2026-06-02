@@ -1,6 +1,9 @@
 services:
   spark_single:
-    image: jupyter/pyspark-notebook:spark-3.5.0
+    build:
+      context: .
+      dockerfile: dockerfile.spark
+    image: engineer-spark:latest
     container_name: spark_single
     ports:
       - "8888:8888"

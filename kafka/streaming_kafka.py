@@ -2,9 +2,12 @@ from pyspark.sql import SparkSession
 import pyspark.sql.functions as F
 import os
 
-minio_access_key = os.getenv("AWS_ACCESS_KEY_ID", "admin")
-minio_secret_key = os.getenv("AWS_SECRET_ACCESS_KEY", "adminadmin")
+minio_access_key = os.getenv("AWS_ACCESS_KEY_ID", os.getenv("MINIO_USER", "slavakoder"))
+minio_secret_key = os.getenv("AWS_SECRET_ACCESS_KEY", os.getenv("MINIO_PASSWORD", "slavakoder"))
 db_pass = os.getenv("ICEBERG_DB_PASS", "airflow")
+minio_bucket = os.getenv("MINIO_BUCKET", "raw-bronze")
+warehouse = f"s3a://{minio_bucket}/warehouse"
+checkpoints = f"s3a://{minio_bucket}/checkpoints/multi_sink"
 
 spark = SparkSession.builder \
     .appName('stream_to_iceberg') \
@@ -19,7 +22,7 @@ spark = SparkSession.builder \
     .config("spark.sql.catalog.demo.uri", "jdbc:postgresql://postgres:5432/airflow") \
     .config("spark.sql.catalog.demo.jdbc.user", "airflow") \
     .config("spark.sql.catalog.demo.jdbc.password", db_pass) \
-    .config("spark.sql.catalog.demo.warehouse", "s3a://raw-bucket/warehouse") \
+    .config("spark.sql.catalog.demo.warehouse", warehouse) \
     .config("spark.hadoop.fs.s3a.endpoint", "http://minio:9000") \
     .config("spark.hadoop.fs.s3a.access.key", minio_access_key) \
     .config("spark.hadoop.fs.s3a.secret.key", minio_secret_key) \
@@ -98,7 +101,7 @@ def write_to_iceberg_and_clickhouse(batch_df, batch_id):
 query = df_winda.writeStream \
     .foreachBatch(write_to_iceberg_and_clickhouse) \
     .outputMode("append") \
-    .option("checkpointLocation", "s3a://raw-bucket/checkpoints/multi_sink") \
+    .option("checkpointLocation", checkpoints) \
     .trigger(availableNow=True) \
     .start()
 

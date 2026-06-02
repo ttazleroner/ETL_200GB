@@ -39,7 +39,12 @@ with DAG(
 
     producer_kafka = BashOperator(
         task_id='producer_kafka',
-        bash_command='docker exec spark_single spark-submit /home/jovyan/work/kafka/producer_kafka.py'
+        bash_command=(
+            'docker exec '
+            '-e AWS_ACCESS_KEY_ID="$MINIO_USER" '
+            '-e AWS_SECRET_ACCESS_KEY="$MINIO_PASSWORD" '
+            'spark_single bash -c "cd /home/jovyan/work/kafka && python producer_kafka.py"'
+        ),
     )
 
     streaming_kafka = BashOperator(

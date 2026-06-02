@@ -1,0 +1,7 @@
+FROM jupyter/pyspark-notebook:spark-3.5.0
+
+USER root
+
+# Base image ships broken `kafka` 1.3.5 (SyntaxError on Python 3.11); use kafka-python.
+RUN pip uninstall -y kafka 2>/dev/null || true \
+    && pip install --no-cache-dir kafka-python==2.0.2 boto3
