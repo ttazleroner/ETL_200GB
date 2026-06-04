@@ -67,7 +67,7 @@ def iter_rows_from_minio(client):
                 keys.append(key)
     if not keys:
         raise FileNotFoundError(
-            f'В s3://{BUCKET}/{PREFIX} нет CSV. Сначала запустите generate_fake_data.py.'
+            f'В s3://{BUCKET}/{PREFIX} нет CSV. сначала запустите generate_fake_data.py.'
         )
 
     for key in sorted(keys):

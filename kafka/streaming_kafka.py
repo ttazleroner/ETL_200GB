@@ -39,7 +39,8 @@ spark.sql("""
         window struct<start:timestamp, end:timestamp>,
         status STRING,
         total_sum DOUBLE,
-        tx_count BIGINT
+        tx_count BIGINT,
+        currency STRING
     ) USING iceberg
 """)
 
@@ -66,14 +67,25 @@ my_schema = 'tx_id INT, status STRING, amount DOUBLE, timestamp LONG, receiver_i
 df_pars = df.select(F.from_json(F.col('value').cast('string'), my_schema).alias('data')).select('data.*') \
     .withColumn('event_time', F.from_unixtime(F.col('timestamp')).cast('timestamp'))
 
-df_winda = df_pars \
+
+dim = spark.table("demo.p2p_transfers").select(
+    F.col("receiver_id"),
+    F.col("currency"),
+).dropDuplicates(["receiver_id"])
+
+df_enriched = df_pars \
+    .withColumn("receiver_id", F.trim(F.col("receiver_id"))) \
+    .join(F.broadcast(dim), on="receiver_id", how="left")
+
+df_winda = df_enriched \
     .withWatermark('event_time', '15 minutes') \
     .groupBy(
         F.window(F.col('event_time'), '10 minutes', '1 minutes'),
-        F.col('status')
+        F.col('status'),
+        F.col('currency'),
     ) \
     .agg(
-        F.sum('amount').alias('total_sum'), 
+        F.sum('amount').alias('total_sum'),
         F.count('tx_id').alias('tx_count')
     )
 
