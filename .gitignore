@@ -5,3 +5,4 @@ generate_fake_data.py
 .ipynb_checkpoints
 tempCodeRunnerFile.py
 .csv
+reset_iceberg.py

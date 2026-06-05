@@ -7,7 +7,7 @@ minio_secret_key = os.getenv("AWS_SECRET_ACCESS_KEY", os.getenv("MINIO_PASSWORD"
 db_pass = os.getenv("ICEBERG_DB_PASS", "airflow")
 minio_bucket = os.getenv("MINIO_BUCKET", "raw-bronze")
 warehouse = f"s3a://{minio_bucket}/warehouse"
-checkpoints = f"s3a://{minio_bucket}/checkpoints/multi_sink"
+checkpoints = f"s3a://{minio_bucket}/checkpoints/multi_sink_V4"
 
 spark = SparkSession.builder \
     .appName('stream_to_iceberg') \
@@ -62,20 +62,23 @@ df = spark.readStream \
     .option('failOnDataLoss', 'false') \
     .load()
 
-my_schema = 'tx_id INT, status STRING, amount DOUBLE, timestamp LONG, receiver_id STRING'
+my_schema = 'tx_id INT, status STRING, amount DOUBLE, timestamp LONG, receiver_id STRING, currency STRING'
 
 df_pars = df.select(F.from_json(F.col('value').cast('string'), my_schema).alias('data')).select('data.*') \
-    .withColumn('event_time', F.from_unixtime(F.col('timestamp')).cast('timestamp'))
+    .withColumn('event_time', F.from_unixtime(F.col('timestamp')).cast('timestamp')) 
 
 
 dim = spark.table("demo.p2p_transfers").select(
     F.col("receiver_id"),
-    F.col("currency"),
+    F.col("currency").alias('valuta'),
 ).dropDuplicates(["receiver_id"])
 
 df_enriched = df_pars \
     .withColumn("receiver_id", F.trim(F.col("receiver_id"))) \
-    .join(F.broadcast(dim), on="receiver_id", how="left")
+    .join(F.broadcast(dim), on="receiver_id", how="left") \
+    .withColumn("final_valuta", F.coalesce(F.col("currency"), F.col("valuta"))) \
+    .drop("currency", "valuta") \
+    .withColumnRenamed("final_valuta", "currency")
 
 df_winda = df_enriched \
     .withWatermark('event_time', '15 minutes') \
