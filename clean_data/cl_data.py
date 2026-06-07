@@ -10,10 +10,13 @@ fixedsuka = ['NULL']
 
 spark = SparkSession.builder \
     .appName('cleandata') \
-    .config('spark.driver.memory', '2g') \
-    .config('spark.executor.memory', '2g') \
+    .config('spark.driver.memory', '4g') \
+    .config('spark.executor.memory', '4g') \
     .config('spark.shuffle.partitions', '8') \
     .config("spark.sql.catalog.demo", "org.apache.iceberg.spark.SparkCatalog") \
+    .config("spark.memory.offHeap.enabled", "true") \
+    .config("spark.memory.offHeap.size", "4g") \
+    .config("spark.sql.shuffle.partitions", "400") \
     .config("spark.sql.catalog.demo.type", "jdbc") \
     .config("spark.sql.catalog.demo.uri", "jdbc:postgresql://postgres:5432/airflow") \
     .config("spark.sql.catalog.demo.jdbc.user", "airflow") \
@@ -31,8 +34,8 @@ print('запускаемся')
 
 spark.sparkContext.setLogLevel('WARN')
 
-# 's3a://raw-bronze/landing/p2p_transfers/*.csv'
-raw_data = "s3a://raw-bronze/landing/p2p_transfers/chunk_1.csv"
+raw_data = 's3a://raw-bronze/landing/p2p_transfers/*.csv'
+# raw_data = "s3a://raw-bronze/landing/p2p_transfers/chunk_1.csv"
 dlq_data = 's3a://raw-bronze/dlq/dlq_transfers/'
 
 
@@ -59,7 +62,7 @@ for kolonki in column_kolonki:
 df = df.fillna('1970-01-01 00:00:00', subset=['timestamp'])
 df = df.dropDuplicates(['tx_id',])
 df = df.replace(['', 'N/A', 'NULL ', 'NULL', ' NULL', ' null', ' '], 'Unknown', subset=['status'])
-df = df.sort(F.col('sender_id').asc())
+df = df.sortWithinPartitions('sender_id')
 df_kruto = df.filter(
     (F.col('amount') > 0) & 
     (F.col('status').isNotNull()) &
