@@ -13,6 +13,7 @@ spark = SparkSession.builder \
     .config('spark.driver.memory', '4g') \
     .config('spark.executor.memory', '4g') \
     .config('spark.shuffle.partitions', '8') \
+    .config('spark.executor.cores', '2') \
     .config("spark.sql.catalog.demo", "org.apache.iceberg.spark.SparkCatalog") \
     .config("spark.memory.offHeap.enabled", "true") \
     .config("spark.memory.offHeap.size", "4g") \
@@ -96,6 +97,9 @@ df_final = df_kruto.select(
 
 
 df_dlq = df_zalupa.withColumn("dlq_processed_at", F.current_timestamp())
+df_dlq = df_dlq.sortWithinPartitions('status')
 df_dlq.write.mode("append").parquet("s3a://raw-bronze/logical_dlq/")
+
+df_final = df_final.sortWithinPartitions('status')
 df_final.writeTo('demo.p2p_transfers').append()
 df.show(5)
