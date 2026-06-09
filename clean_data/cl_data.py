@@ -112,6 +112,3 @@ df_final = df_final.repartition(400).sortWithinPartitions('status')
 df_final.writeTo('demo.p2p_transfers').append()
 df.show(5)
 
-
-
-
