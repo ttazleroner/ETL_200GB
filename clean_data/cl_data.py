@@ -10,13 +10,21 @@ fixedsuka = ['NULL']
 
 spark = SparkSession.builder \
     .appName('cleandata') \
-    .config('spark.driver.memory', '4g') \
-    .config('spark.executor.memory', '4g') \
+    .config('spark.driver.memory', '2g') \
+    .config('spark.executor.memory', '3g') \
     .config('spark.shuffle.partitions', '8') \
-    .config('spark.executor.cores', '2') \
+    .config('spark.executor.cores', '1') \
     .config("spark.sql.catalog.demo", "org.apache.iceberg.spark.SparkCatalog") \
     .config("spark.memory.offHeap.enabled", "true") \
     .config("spark.memory.offHeap.size", "4g") \
+    .config("spark.hadoop.fs.s3a.fast.upload", "true") \
+    .config("spark.hadoop.fs.s3a.fast.upload.buffer", "disk") \
+    .config("spark.hadoop.fs.s3a.multipart.size", "32M") \
+    .config("spark.hadoop.fs.s3a.connection.maximum", "200") \
+    .config("spark.hadoop.fs.s3a.connection.timeout", "600000") \
+    .config("spark.hadoop.fs.s3a.connection.establish.timeout", "60000") \
+    .config("spark.hadoop.fs.s3a.attempts.maximum", "20") \
+    .config("spark.hadoop.fs.s3a.multipart.size", "104M") \
     .config("spark.sql.shuffle.partitions", "400") \
     .config("spark.sql.catalog.demo.type", "jdbc") \
     .config("spark.sql.catalog.demo.uri", "jdbc:postgresql://postgres:5432/airflow") \
@@ -97,9 +105,13 @@ df_final = df_kruto.select(
 
 
 df_dlq = df_zalupa.withColumn("dlq_processed_at", F.current_timestamp())
-df_dlq = df_dlq.sortWithinPartitions('status')
+df_dlq = df_dlq.repartition(100)
 df_dlq.write.mode("append").parquet("s3a://raw-bronze/logical_dlq/")
 
-df_final = df_final.sortWithinPartitions('status')
+df_final = df_final.repartition(400).sortWithinPartitions('status')
 df_final.writeTo('demo.p2p_transfers').append()
 df.show(5)
+
+
+
+
