@@ -9,13 +9,13 @@ DB_PASS = "airflow"
 
 spark = SparkSession.builder \
     .appName('cleandata') \
-    .config('spark.driver.memory', '4g') \
+    .config('spark.driver.memory', '3g') \
     .config('spark.executor.memory', '4g') \
     .config('spark.shuffle.partitions', '8') \
     .config('spark.executor.cores', '2') \
     .config("spark.sql.catalog.demo", "org.apache.iceberg.spark.SparkCatalog") \
     .config("spark.memory.offHeap.enabled", "true") \
-    .config("spark.memory.offHeap.size", "4g") \
+    .config("spark.memory.offHeap.size", "3g") \
     .config("spark.hadoop.fs.s3a.fast.upload", "true") \
     .config("spark.hadoop.fs.s3a.multipart.size", "32M") \
     .config("spark.hadoop.fs.s3a.connection.maximum", "200") \
@@ -96,5 +96,5 @@ df_zalupa.coalesce(2) \
     .write.mode("append") \
     .parquet("s3a://raw-bronze/logical_dlq/")
 
-df_final = df_final.repartition(4).sortWithinPartitions('status')
+df_final = df_final.repartition(200).sortWithinPartitions('status')
 df_final.writeTo('demo.p2p_transfers')
