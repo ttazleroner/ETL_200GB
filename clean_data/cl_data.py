@@ -6,25 +6,23 @@ MINIO_ACCESS = "slavakoder"
 MINIO_SECRET = "slavakoder"
 DB_PASS = "airflow"
 
-fixedsuka = ['NULL']
 
 spark = SparkSession.builder \
     .appName('cleandata') \
-    .config('spark.driver.memory', '2g') \
-    .config('spark.executor.memory', '3g') \
+    .config('spark.driver.memory', '4g') \
+    .config('spark.executor.memory', '4g') \
     .config('spark.shuffle.partitions', '8') \
-    .config('spark.executor.cores', '1') \
+    .config('spark.executor.cores', '2') \
     .config("spark.sql.catalog.demo", "org.apache.iceberg.spark.SparkCatalog") \
     .config("spark.memory.offHeap.enabled", "true") \
     .config("spark.memory.offHeap.size", "4g") \
     .config("spark.hadoop.fs.s3a.fast.upload", "true") \
-    .config("spark.hadoop.fs.s3a.fast.upload.buffer", "disk") \
     .config("spark.hadoop.fs.s3a.multipart.size", "32M") \
     .config("spark.hadoop.fs.s3a.connection.maximum", "200") \
     .config("spark.hadoop.fs.s3a.connection.timeout", "600000") \
     .config("spark.hadoop.fs.s3a.connection.establish.timeout", "60000") \
     .config("spark.hadoop.fs.s3a.attempts.maximum", "20") \
-    .config("spark.hadoop.fs.s3a.multipart.size", "104M") \
+    .config("spark.hadoop.fs.s3a.multipart.size", "32M") \
     .config("spark.sql.shuffle.partitions", "400") \
     .config("spark.sql.catalog.demo.type", "jdbc") \
     .config("spark.sql.catalog.demo.uri", "jdbc:postgresql://postgres:5432/airflow") \
@@ -40,18 +38,15 @@ spark = SparkSession.builder \
     .config("spark.jars.packages", "org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.5.2,org.apache.hadoop:hadoop-aws:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.262,org.postgresql:postgresql:42.6.0") \
     .getOrCreate()
 print('запускаемся')
-
 spark.sparkContext.setLogLevel('WARN')
 
 raw_data = 's3a://raw-bronze/landing/p2p_transfers/*.csv'
 # raw_data = "s3a://raw-bronze/landing/p2p_transfers/chunk_1.csv"
 dlq_data = 's3a://raw-bronze/dlq/dlq_transfers/'
 
-
-rename_dict = ('Unknown')
+# spark.sql (" DROP TABLE IF EXISTS demo.p2p_transfers")
 
 column_kolonki = ['tx_id', 'sender_id', 'timestamp', 'status', 'receiver_id', 'amount', 'currency']
-
 ddl_schema = "tx_id STRING, sender_id STRING, receiver_id STRING, amount STRING, currency STRING, status STRING, timestamp LONG"
 
 df = spark.read.csv(raw_data, header=True, schema=ddl_schema)
@@ -66,12 +61,13 @@ df = (df
     .withColumn('status', F.coalesce(F.col('status'), F.lit('Unknown')))
     .withColumn('status', F.trim(F.col('status')))
 ) 
+
 for kolonki in column_kolonki:
     df = df.withColumn(kolonki, F.trim(F.col(kolonki)))
 df = df.fillna('1970-01-01 00:00:00', subset=['timestamp'])
-df = df.dropDuplicates(['tx_id',])
+# df = df.dropDuplicates(['tx_id',])
 df = df.replace(['', 'N/A', 'NULL ', 'NULL', ' NULL', ' null', ' '], 'Unknown', subset=['status'])
-df = df.sortWithinPartitions('sender_id')
+
 df_kruto = df.filter(
     (F.col('amount') > 0) & 
     (F.col('status').isNotNull()) &
@@ -84,11 +80,7 @@ df_zalupa = df.filter(
     (F.col('status') == 'Unknown') |
     (F.col('timestamp') < '1970-01-01 00:00:00') |
     (F.col('timestamp').isNull())
-)
-
-
-
-
+).withColumn('dlq_processed_at', F.current_timestamp())
 
 df_final = df_kruto.select(
     F.col("tx_id").cast("string"),
@@ -100,15 +92,9 @@ df_final = df_kruto.select(
     F.col("timestamp").cast("timestamp")
 )
 
+df_zalupa.coalesce(2) \
+    .write.mode("append") \
+    .parquet("s3a://raw-bronze/logical_dlq/")
 
-
-
-
-df_dlq = df_zalupa.withColumn("dlq_processed_at", F.current_timestamp())
-df_dlq = df_dlq.repartition(100)
-df_dlq.write.mode("append").parquet("s3a://raw-bronze/logical_dlq/")
-
-df_final = df_final.repartition(400).sortWithinPartitions('status')
-df_final.writeTo('demo.p2p_transfers').append()
-df.show(5)
-
+df_final = df_final.repartition(4).sortWithinPartitions('status')
+df_final.writeTo('demo.p2p_transfers')
