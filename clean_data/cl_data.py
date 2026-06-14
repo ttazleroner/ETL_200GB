@@ -11,10 +11,14 @@ spark = SparkSession.builder \
     .appName('cleandata') \
     .config('spark.driver.memory', '3g') \
     .config('spark.executor.memory', '4g') \
-    .config('spark.shuffle.partitions', '8') \
+    .config('spark.sql.shuffle.partitions', '64') \
+    .config('spark.shuffle.partitions', '64') \
     .config('spark.executor.cores', '2') \
     .config("spark.sql.catalog.demo", "org.apache.iceberg.spark.SparkCatalog") \
     .config("spark.memory.offHeap.enabled", "true") \
+    .config("spark.hadoop.fs.s3a.committer.name", "magic") \
+    .config("spark.hadoop.fs.s3a.committer.magic.enabled", "true") \
+    .config("spark.hadoop.fs.s3a.impl.disable.cache", "true") \
     .config("spark.memory.offHeap.size", "3g") \
     .config("spark.hadoop.fs.s3a.fast.upload", "true") \
     .config("spark.hadoop.fs.s3a.multipart.size", "32M") \
@@ -49,10 +53,17 @@ dlq_data = 's3a://raw-bronze/dlq/dlq_transfers/'
 column_kolonki = ['tx_id', 'sender_id', 'timestamp', 'status', 'receiver_id', 'amount', 'currency']
 ddl_schema = "tx_id STRING, sender_id STRING, receiver_id STRING, amount STRING, currency STRING, status STRING, timestamp LONG"
 
-df = spark.read.csv(raw_data, header=True, schema=ddl_schema)
 
+Path = spark._jvm.org.apache.hadoop.fs.Path
+FileSystem = spark._jvm.org.apache.hadoop.fs.FileSystem
+URI = spark._jvm.java.net.URI
+fs = FileSystem.get(URI("s3a://raw-bronze/"), spark._jsc.hadoopConfiguration())
+status_list = fs.listStatus(Path("s3a://raw-bronze/landing/p2p_transfers/"))
+files = [str(f.getPath()) for f in status_list if f.getPath().getName().endswith('.csv')]
 
-df = (df
+for index, file_path in enumerate(files, 1):
+    df = spark.read.csv(file_path, header=True, schema=ddl_schema)
+    df = (df
     .withColumn('timestamp', F.from_unixtime(F.col('timestamp')).cast('timestamp'))
     .withColumn('sender_id', F.regexp_replace(F.col('sender_id'), r'\s+', ''))
     .withColumn('receiver_id', F.regexp_replace(F.col('receiver_id'), r'\s+', ''))
@@ -60,12 +71,12 @@ df = (df
     .withColumn('timestamp', F.coalesce(F.col('timestamp'), F.lit('1970-01-01 00:00:00')))
     .withColumn('status', F.coalesce(F.col('status'), F.lit('Unknown')))
     .withColumn('status', F.trim(F.col('status')))
-) 
+)
 
 for kolonki in column_kolonki:
     df = df.withColumn(kolonki, F.trim(F.col(kolonki)))
 df = df.fillna('1970-01-01 00:00:00', subset=['timestamp'])
-# df = df.dropDuplicates(['tx_id',])
+df = df.dropDuplicates(['tx_id',])
 df = df.replace(['', 'N/A', 'NULL ', 'NULL', ' NULL', ' null', ' '], 'Unknown', subset=['status'])
 
 df_kruto = df.filter(
@@ -76,6 +87,7 @@ df_kruto = df.filter(
 )
 df_zalupa = df.filter(
     (F.col('amount') < 0) |
+    (F.col('amount').isNull()) |
     (F.col('status').isNull()) |
     (F.col('status') == 'Unknown') |
     (F.col('timestamp') < '1970-01-01 00:00:00') |
@@ -92,9 +104,13 @@ df_final = df_kruto.select(
     F.col("timestamp").cast("timestamp")
 )
 
-df_zalupa.coalesce(2) \
+df_zalupa \
     .write.mode("append") \
     .parquet("s3a://raw-bronze/logical_dlq/")
 
-df_final = df_final.repartition(200).sortWithinPartitions('status')
-df_final.writeTo('demo.p2p_transfers')
+df_final = df_final.repartition(40).sortWithinPartitions('status')
+if index == 1:
+    df_final.writeTo('demo.p2p_transfers').createOrReplace()
+else:
+    df_final.writeTo('demo.p2p_transfers').append()
+spark.stop()
