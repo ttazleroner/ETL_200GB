@@ -27,7 +27,6 @@ spark = SparkSession.builder \
     .config("spark.hadoop.fs.s3a.connection.establish.timeout", "60000") \
     .config("spark.hadoop.fs.s3a.attempts.maximum", "20") \
     .config("spark.hadoop.fs.s3a.multipart.size", "32M") \
-    .config("spark.sql.shuffle.partitions", "400") \
     .config("spark.sql.catalog.demo.type", "jdbc") \
     .config("spark.sql.catalog.demo.uri", "jdbc:postgresql://postgres:5432/airflow") \
     .config("spark.sql.catalog.demo.jdbc.user", "airflow") \
@@ -71,46 +70,45 @@ for index, file_path in enumerate(files, 1):
     .withColumn('timestamp', F.coalesce(F.col('timestamp'), F.lit('1970-01-01 00:00:00')))
     .withColumn('status', F.coalesce(F.col('status'), F.lit('Unknown')))
     .withColumn('status', F.trim(F.col('status')))
-)
+    )
 
-for kolonki in column_kolonki:
-    df = df.withColumn(kolonki, F.trim(F.col(kolonki)))
-df = df.fillna('1970-01-01 00:00:00', subset=['timestamp'])
-df = df.dropDuplicates(['tx_id',])
-df = df.replace(['', 'N/A', 'NULL ', 'NULL', ' NULL', ' null', ' '], 'Unknown', subset=['status'])
+    for kolonki in column_kolonki:
+        df = df.withColumn(kolonki, F.trim(F.col(kolonki)))
+    df = df.fillna('1970-01-01 00:00:00', subset=['timestamp'])
+    df = df.dropDuplicates(['tx_id',])
+    df = df.replace(['', 'N/A', 'NULL ', 'NULL', ' NULL', ' null', ' '], 'Unknown', subset=['status'])
 
-df_kruto = df.filter(
-    (F.col('amount') > 0) & 
-    (F.col('status').isNotNull()) &
-    (F.col('status') != 'Unknown') &
-    (F.col('timestamp') > '1970-01-01 00:00:00')
-)
-df_zalupa = df.filter(
-    (F.col('amount') < 0) |
-    (F.col('amount').isNull()) |
-    (F.col('status').isNull()) |
-    (F.col('status') == 'Unknown') |
-    (F.col('timestamp') < '1970-01-01 00:00:00') |
-    (F.col('timestamp').isNull())
-).withColumn('dlq_processed_at', F.current_timestamp())
+    df_kruto = df.filter(
+        (F.col('amount') > 0) & 
+        (F.col('status').isNotNull()) &
+        (F.col('status') != 'Unknown') &
+        (F.col('timestamp') > '1970-01-01 00:00:00')
+    )
+    df_zalupa = df.filter(
+        (F.col('amount') < 0) |
+        (F.col('amount').isNull()) |
+        (F.col('status').isNull()) |
+        (F.col('status') == 'Unknown') |
+        (F.col('timestamp') < '1970-01-01 00:00:00') |
+        (F.col('timestamp').isNull())
+    ).withColumn('dlq_processed_at', F.current_timestamp())
 
-df_final = df_kruto.select(
-    F.col("tx_id").cast("string"),
-    F.col("sender_id").cast("string"),
-    F.col("receiver_id").cast("string"),
-    F.col("amount").cast("double"),
-    F.col("currency").cast("string"),
-    F.col("status").cast("string"),
-    F.col("timestamp").cast("timestamp")
-)
+    df_final = df_kruto.select(
+        F.col("tx_id").cast("string"),
+        F.col("sender_id").cast("string"),
+        F.col("receiver_id").cast("string"),
+        F.col("amount").cast("double"),
+        F.col("currency").cast("string"),
+        F.col("status").cast("string"),
+        F.col("timestamp").cast("timestamp")
+    )
 
-df_zalupa \
-    .write.mode("append") \
-    .parquet("s3a://raw-bronze/logical_dlq/")
-
-df_final = df_final.repartition(40).sortWithinPartitions('status')
-if index == 1:
-    df_final.writeTo('demo.p2p_transfers').createOrReplace()
-else:
-    df_final.writeTo('demo.p2p_transfers').append()
+    df_zalupa \
+        .write.mode("append") \
+        .parquet("s3a://raw-bronze/logical_dlq/")
+    df_final = df_final.repartition(2).sortWithinPartitions('status')
+    if index == 1:
+        df_final.writeTo('demo.p2p_transfers').createOrReplace()
+    else:
+        df_final.writeTo('demo.p2p_transfers').append()
 spark.stop()
