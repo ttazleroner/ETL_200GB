@@ -9,8 +9,9 @@ DB_PASS = "airflow"
 
 spark = SparkSession.builder \
     .appName('cleandata') \
-    .config('spark.driver.memory', '3g') \
-    .config('spark.executor.memory', '4g') \
+    .config('spark.driver.memory', '4g') \
+    .config('spark.executor.memory', '6g') \
+    .config("spark.memory.offHeap.size", "4g") \
     .config('spark.sql.shuffle.partitions', '64') \
     .config('spark.shuffle.partitions', '64') \
     .config('spark.executor.cores', '2') \
@@ -72,10 +73,9 @@ for index, file_path in enumerate(files, 1):
     .withColumn('status', F.trim(F.col('status')))
     )
 
-    for kolonki in column_kolonki:
-        df = df.withColumn(kolonki, F.trim(F.col(kolonki)))
+    df = df.select([F.trim(F.col(c)).alias(c) if c in column_kolonki else F.col(c) for c in df.columns])
     df = df.fillna('1970-01-01 00:00:00', subset=['timestamp'])
-    df = df.dropDuplicates(['tx_id',])
+    # df = df.dropDuplicates(['tx_id',])
     df = df.replace(['', 'N/A', 'NULL ', 'NULL', ' NULL', ' null', ' '], 'Unknown', subset=['status'])
 
     df_kruto = df.filter(
@@ -104,6 +104,7 @@ for index, file_path in enumerate(files, 1):
     )
 
     df_zalupa \
+        .repartition(4) \
         .write.mode("append") \
         .parquet("s3a://raw-bronze/logical_dlq/")
     df_final = df_final.repartition(2).sortWithinPartitions('status')
@@ -111,4 +112,7 @@ for index, file_path in enumerate(files, 1):
         df_final.writeTo('demo.p2p_transfers').createOrReplace()
     else:
         df_final.writeTo('demo.p2p_transfers').append()
+    df.unpersist()
+    df_final.unpersist()
+    spark.catalog.clearCache()
 spark.stop()
