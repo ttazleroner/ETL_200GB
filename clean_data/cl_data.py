@@ -12,28 +12,13 @@ spark = SparkSession.builder \
     .config('spark.driver.memory', '1500m') \
     .config('spark.executor.memory', '5g') \
     .config("spark.memory.offHeap.size", "3g") \
+    .config("spark.memory.offHeap.enabled", "true") \
     .config('spark.sql.shuffle.partitions', '48') \
     .config('spark.shuffle.partitions', '48') \
     .config('spark.network.timeout', '400s') \
     .config('spark.executor.heartbeatInterval', '60s') \
-    .config('spark.sql.parquet.compression.codec', 'snappy') \
-    .config('spark.sql.files.maxPartitionBytes', '33554432') \
-    .config('spark.sql.files.openCostInBytes', '4194304') \
     .config('spark.executor.cores', '6') \
     .config("spark.sql.catalog.demo", "org.apache.iceberg.spark.SparkCatalog") \
-    .config("spark.memory.offHeap.enabled", "true") \
-    .config("spark.hadoop.fs.s3a.committer.name", "directory") \
-    .config("spark.hadoop.fs.s3a.committer.magic.enabled", "false") \
-    .config("spark.sql.sources.commitProtocolClass", "org.apache.spark.sql.execution.datasources.SQLHadoopMapReduceCommitProtocol") \
-    .config("spark.sql.parquet.output.committer.class", "org.apache.parquet.hadoop.ParquetOutputCommitter") \
-    .config("spark.hadoop.fs.s3a.impl.disable.cache", "true") \
-    .config("spark.hadoop.fs.s3a.fast.upload", "true") \
-    .config("spark.hadoop.fs.s3a.multipart.size", "32M") \
-    .config("spark.hadoop.fs.s3a.connection.maximum", "200") \
-    .config("spark.hadoop.fs.s3a.connection.timeout", "600000") \
-    .config("spark.hadoop.fs.s3a.connection.establish.timeout", "60000") \
-    .config("spark.hadoop.fs.s3a.attempts.maximum", "20") \
-    .config("spark.hadoop.fs.s3a.multipart.size", "32M") \
     .config("spark.sql.catalog.demo.type", "jdbc") \
     .config("spark.sql.catalog.demo.uri", "jdbc:postgresql://postgres:5432/airflow") \
     .config("spark.sql.catalog.demo.jdbc.user", "airflow") \
@@ -47,6 +32,7 @@ spark = SparkSession.builder \
     .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem") \
     .config("spark.jars.packages", "org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.5.2,org.apache.hadoop:hadoop-aws:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.262,org.postgresql:postgresql:42.6.0") \
     .getOrCreate()
+
 print('запускаемся')
 spark.sparkContext.setLogLevel('WARN')
 
@@ -109,11 +95,13 @@ for index, file_path in enumerate(files, 1):
         F.col("timestamp").cast("timestamp")
     )
 
-    df_zalupa.coalesce(1).write.mode("append").option("compression", "snappy").parquet("s3a://raw-bronze/logical_dlq/")
+    df_zalupa = df_zalupa.coalesce(1)
     df_final = df_final.repartition(2).sortWithinPartitions('status')
     if index == 1:
         df_final.writeTo('demo.p2p_transfers').createOrReplace()
+        df_zalupa.writeTo('demo.dlq_transfers').createOrReplace()
     else:
         df_final.writeTo('demo.p2p_transfers').append()
+        df_zalupa.writeTo('demo.dlq_transfers').append()
     spark.catalog.clearCache()
-spark.stop()
+spark.stop() 
