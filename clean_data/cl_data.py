@@ -105,3 +105,4 @@ for index, file_path in enumerate(files, 1):
         df_zalupa.writeTo('demo.dlq_transfers').append()
     spark.catalog.clearCache()
 spark.stop() 
+# -
