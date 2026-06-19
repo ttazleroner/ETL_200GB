@@ -28,6 +28,7 @@ with DAG(
     schedule_interval=None,
     start_date=datetime(2026, 1, 1),
     catchup=False,
+    max_active_runs=1
 ) as dag:
     
     iceberg_task = BashOperator(
