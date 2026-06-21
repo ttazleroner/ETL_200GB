@@ -35,6 +35,7 @@ spark = SparkSession.builder \
 
 print('запускаемся')
 spark.sparkContext.setLogLevel('WARN')
+spark.sparkContext.setLogLevel('ERROR')
 
 raw_data = 's3a://raw-bronze/landing/p2p_transfers/*.csv'
 # raw_data = "s3a://raw-bronze/landing/p2p_transfers/chunk_1.csv"

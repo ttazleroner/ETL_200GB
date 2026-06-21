@@ -84,3 +84,7 @@ spark.sql("""
     SELECT * FROM demo.p2p_transfers
     WHERE status = 'Unknown'
 """).show()
+
+spark.sql("""
+    SELECT user_id
+""")
