@@ -66,6 +66,12 @@ spark.sql("""
 # spark.sql("CALL demo.system.expire_snapshots(table => 'demo.p2p_transfers', retain_last => 5)")
 # spark.sql("CALL demo.system.remove_orphan_files(table => 'demo.p2p_transfers')")
 
+# spark.sql("""
+#     SELECT order_id, user_id, order_date, amount
+#         AVG (amount) OVER (PARTITION BY user_id) AS user_avg_amount
+#         amount - AVG(amount) OVER (PARTITION BY user_id) AS diff_from_avg
+#     FROM demo.p2p_transfers
+# """)
 
 spark.sql("""
     SELECT file_path, record_count, file_size_in_bytes, partition 
@@ -84,7 +90,3 @@ spark.sql("""
     SELECT * FROM demo.p2p_transfers
     WHERE status = 'Unknown'
 """).show()
-
-spark.sql("""
-    SELECT user_id
-""")
