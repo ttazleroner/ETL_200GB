@@ -36,8 +36,8 @@ spark = SparkSession.builder \
 
 print('iceberg is already used')
 
-spark.sql("""DROP TABLE IF EXISTS demo.p2p_transfers""")
-spark.sql("""DROP TABLE IF EXISTS demo.dlq_transfers""")
+# spark.sql("""DROP TABLE IF EXISTS demo.p2p_transfers""")
+# spark.sql("""DROP TABLE IF EXISTS demo.dlq_transfers""")
 
 spark.sql("""
     CREATE TABLE IF NOT EXISTS demo.p2p_transfers (
@@ -66,12 +66,12 @@ spark.sql("""
 # spark.sql("CALL demo.system.expire_snapshots(table => 'demo.p2p_transfers', retain_last => 5)")
 # spark.sql("CALL demo.system.remove_orphan_files(table => 'demo.p2p_transfers')")
 
-# spark.sql("""
-#     SELECT order_id, user_id, order_date, amount
-#         AVG (amount) OVER (PARTITION BY user_id) AS user_avg_amount
-#         amount - AVG(amount) OVER (PARTITION BY user_id) AS diff_from_avg
-#     FROM demo.p2p_transfers
-# """)
+spark.sql("""
+    SELECT sender_id, tx_id, timestamp, amount,
+        AVG (amount) OVER (PARTITION BY tx_id) AS user_avg_amount,
+        amount - AVG(amount) OVER (PARTITION BY sender_id) AS diff_from_avg
+    FROM demo.p2p_transfers
+""")
 
 spark.sql("""
     SELECT file_path, record_count, file_size_in_bytes, partition 
@@ -85,6 +85,11 @@ spark.sql("""
     FROM demo.p2p_transfers
     GROUP BY status
 """).show()
+
+spark.sql("""
+    SELECT * FROM demo.p2p_transfers
+    WHERE amount > 10000 AND currency = 'USD'
+""")
 
 spark.sql("""
     SELECT * FROM demo.p2p_transfers
