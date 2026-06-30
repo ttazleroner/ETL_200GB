@@ -68,10 +68,16 @@ spark.sql("""
 
 spark.sql("""
     SELECT sender_id, tx_id, timestamp, amount,
-        AVG (amount) OVER (PARTITION BY tx_id) AS user_avg_amount,
+        AVG (amount) OVER (PARTITION BY sender_id) AS user_avg_amount,
         amount - AVG(amount) OVER (PARTITION BY sender_id) AS diff_from_avg
     FROM demo.p2p_transfers
-""")
+""").show()
+
+spark.sql("""
+    SELECT sender_id, tx_id, timestamp, amount,
+    LAG (amount) OVER (PARTITION BY sender_id ORDER BY timestamp) AS prev_tx_amount
+FROM demo.p2p_transfers
+""").show()
 
 spark.sql("""
     SELECT file_path, record_count, file_size_in_bytes, partition 

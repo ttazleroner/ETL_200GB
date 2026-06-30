@@ -2,9 +2,10 @@ import os
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 
-MINIO_ACCESS = "slavakoder"
-MINIO_SECRET = "slavakoder"
-DB_PASS = "airflow"
+MINIO_ACCES = os.getenv('AWS_ACCESS_KEY_ID')
+MINIO_SECRET = os.getenv('MINIO_PASSWORD')
+DB_PASS = os.getenv('ICEBERG_DB_PASS')
+
 
 
 spark = SparkSession.builder \
@@ -26,8 +27,8 @@ spark = SparkSession.builder \
     .config("spark.sql.catalog.demo.warehouse", "s3a://raw-bronze/logical_dlq/warehouse") \
     .config("spark.sql.extensions", "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions") \
     .config("spark.hadoop.fs.s3a.endpoint", "http://minio:9000") \
-    .config("spark.hadoop.fs.s3a.access.key", MINIO_ACCESS) \
-    .config("spark.hadoop.fs.s3a.secret.key", MINIO_SECRET) \
+    .config("spark.hadoop.fs.s3a.access.key", "slavakoder") \
+    .config("spark.hadoop.fs.s3a.secret.key", "slavakoder") \
     .config("spark.hadoop.fs.s3a.path.style.access", "true") \
     .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem") \
     .config("spark.jars.packages", "org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.5.2,org.apache.hadoop:hadoop-aws:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.262,org.postgresql:postgresql:42.6.0") \
@@ -37,8 +38,8 @@ print('запускаемся')
 spark.sparkContext.setLogLevel('WARN')
 spark.sparkContext.setLogLevel('ERROR')
 
-raw_data = 's3a://raw-bronze/landing/p2p_transfers/*.csv'
-# raw_data = "s3a://raw-bronze/landing/p2p_transfers/chunk_1.csv"
+# raw_data = 's3a://raw-bronze/landing/p2p_transfers/*.csv'
+raw_data = "s3a://raw-bronze/landing/p2p_transfers/chunk_1.csv"
 dlq_data = 's3a://raw-bronze/dlq/dlq_transfers/'
 
 # spark.sql (" DROP TABLE IF EXISTS demo.p2p_transfers")
@@ -107,3 +108,9 @@ for index, file_path in enumerate(files, 1):
     spark.catalog.clearCache()
 spark.stop() 
 # -
+
+spark.sql("""
+    SELECT sender_id, tx_id, timestamp, amount
+    LAG (amount) OVER (PARTITION BY sender_id ORDER BY timestamp) AS prev_tx_amount
+FROM demo.p2p_transfers
+""")
