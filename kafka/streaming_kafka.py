@@ -1,13 +1,29 @@
 from pyspark.sql import SparkSession
 import pyspark.sql.functions as F
-import os
+import sys
+from pathlib import Path
 
-minio_access_key = os.getenv("AWS_ACCESS_KEY_ID", os.getenv("MINIO_USER", "slavakoder"))
-minio_secret_key = os.getenv("AWS_SECRET_ACCESS_KEY", os.getenv("MINIO_PASSWORD", "slavakoder"))
-db_pass = os.getenv("ICEBERG_DB_PASS", "airflow")
-minio_bucket = os.getenv("MINIO_BUCKET", "raw-bronze")
-warehouse = f"s3a://{minio_bucket}/warehouse"
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from config.env import (
+    clickhouse_password,
+    iceberg_db_password,
+    iceberg_warehouse,
+    minio_access_key,
+    minio_bucket,
+    minio_endpoint,
+    minio_secret_key,
+)
+
+minio_access_key = minio_access_key()
+minio_secret_key = minio_secret_key()
+db_pass = iceberg_db_password()
+minio_bucket = minio_bucket()
+warehouse = iceberg_warehouse()
 checkpoints = f"s3a://{minio_bucket}/checkpoints/multi_sink_V4"
+clickhouse_pass = clickhouse_password()
 
 spark = SparkSession.builder \
     .appName('stream_to_iceberg') \
@@ -23,7 +39,7 @@ spark = SparkSession.builder \
     .config("spark.sql.catalog.demo.jdbc.user", "airflow") \
     .config("spark.sql.catalog.demo.jdbc.password", db_pass) \
     .config("spark.sql.catalog.demo.warehouse", warehouse) \
-    .config("spark.hadoop.fs.s3a.endpoint", "http://minio:9000") \
+    .config("spark.hadoop.fs.s3a.endpoint", minio_endpoint()) \
     .config("spark.hadoop.fs.s3a.access.key", minio_access_key) \
     .config("spark.hadoop.fs.s3a.secret.key", minio_secret_key) \
     .config("spark.hadoop.fs.s3a.path.style.access", "true") \
@@ -109,7 +125,7 @@ def write_to_iceberg_and_clickhouse(batch_df, batch_id):
         .option("url", "jdbc:clickhouse://clickhouse:8123/default") \
         .option("dbtable", "windowed_stats_ch") \
         .option("user", "admin") \
-        .option("password", "admin_pass") \
+        .option("password", clickhouse_pass) \
         .option("driver", "com.clickhouse.jdbc.ClickHouseDriver") \
         .mode("append") \
         .save()

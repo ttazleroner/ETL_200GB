@@ -2,15 +2,23 @@ import csv
 import io
 import json
 import os
+import sys
+from pathlib import Path
 
 import boto3
 from kafka import KafkaProducer
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from config.env import minio_access_key, minio_endpoint, minio_secret_key
 
 TOPIC = 'p2p_transactions'
 BOOTSTRAP = os.getenv('KAFKA_BOOTSTRAP', 'kafka_broker:29092')
 BUCKET = os.getenv('MINIO_BUCKET', 'raw-bronze')
 PREFIX = os.getenv('MINIO_PREFIX', 'landing/p2p_transfers/')
-ENDPOINT = os.getenv('MINIO_ENDPOINT', 'http://minio:9000')
+ENDPOINT = minio_endpoint()
 MESSAGE_LIMIT = int(os.getenv('KAFKA_MESSAGE_LIMIT', '100001'))
 FLUSH_EVERY = int(os.getenv('KAFKA_FLUSH_EVERY', '40000'))
 
@@ -19,10 +27,8 @@ def s3_client():
     return boto3.client(
         's3',
         endpoint_url=ENDPOINT,
-        aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID', os.getenv('MINIO_USER', 'admin')),
-        aws_secret_access_key=os.getenv(
-            'AWS_SECRET_ACCESS_KEY', os.getenv('MINIO_PASSWORD', 'adminadmin')
-        ),
+        aws_access_key_id=minio_access_key(),
+        aws_secret_access_key=minio_secret_key(),
     )
 
 

@@ -1,6 +1,21 @@
+import os
+import sys
+from pathlib import Path
+
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
-import os
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from config.env import (
+    iceberg_db_password,
+    iceberg_warehouse,
+    minio_access_key,
+    minio_endpoint,
+    minio_secret_key,
+)
 
 ICEBERG_PACKAGES = [
     "org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.5.2",
@@ -9,9 +24,9 @@ ICEBERG_PACKAGES = [
     "org.postgresql:postgresql:42.6.0"
 ]
 
-minio_access_key = os.getenv("AWS_ACCESS_KEY_ID", "admin")
-minio_secret_key = os.getenv("AWS_SECRET_ACCESS_KEY", "adminadmin")
-db_pass = os.getenv("ICEBERG_DB_PASS")
+minio_access_key = minio_access_key()
+minio_secret_key = minio_secret_key()
+db_pass = iceberg_db_password()
 
 spark = SparkSession.builder \
     .appName("IcebergTesting") \
@@ -23,10 +38,10 @@ spark = SparkSession.builder \
     .config("spark.sql.catalog.demo.type", "jdbc") \
     .config("spark.sql.catalog.demo.uri", "jdbc:postgresql://postgres:5432/airflow") \
     .config("spark.sql.catalog.demo.jdbc.user", "airflow") \
-    .config("spark.sql.catalog.demo.warehouse", "s3a://gold-bucket/warehouse") \
+    .config("spark.sql.catalog.demo.warehouse", iceberg_warehouse()) \
     .config("spark.sql.catalog.demo.io-impl", "org.apache.iceberg.hadoop.HadoopFileIO") \
     \
-    .config("spark.hadoop.fs.s3a.endpoint", "http://minio:9000") \
+    .config("spark.hadoop.fs.s3a.endpoint", minio_endpoint()) \
     .config("spark.hadoop.fs.s3a.access.key", minio_access_key) \
     .config("spark.hadoop.fs.s3a.secret.key", minio_secret_key ) \
     .config("spark.hadoop.fs.s3a.path.style.access", "true") \

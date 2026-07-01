@@ -1,11 +1,20 @@
+import os
+import sys
+from pathlib import Path
+
 import clickhouse_connect
-from datetime import datetime
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from config.env import clickhouse_password
 
 client = clickhouse_connect.get_client(
-    host='clickhouse', 
-    port=8123, 
-    username='admin', 
-    password='admin_pass'
+    host='clickhouse',
+    port=8123,
+    username=os.getenv('CLICKHOUSE_USER', 'admin'),
+    password=clickhouse_password(),
 )
 
 # client.command("DROP TABLE IF EXISTS default.windowed_stats_ch")
