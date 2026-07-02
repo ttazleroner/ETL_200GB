@@ -59,8 +59,8 @@ docker exec -i \
   -e ICEBERG_DB_PASS="$ICEBERG_DB_PASS" \
   -e MINIO_USER="$MINIO_USER" \
   -e MINIO_PASSWORD="$MINIO_PASSWORD" \
-  -e AWS_ACCESS_KEY_ID="$MINIO_USER" \
-  -e AWS_SECRET_ACCESS_KEY="$MINIO_PASSWORD" \
+  -e AWS_ACCESS_KEY_ID="$MINIO_USER", "slavakoder" \
+  -e AWS_SECRET_ACCESS_KEY="$MINIO_PASSWORD", "slavakoder \
   spark_single spark-submit \
   --packages org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.5.2,org.apache.hadoop:hadoop-aws:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.262,org.postgresql:postgresql:42.6.0 \
   --conf spark.driver.memory=2g \

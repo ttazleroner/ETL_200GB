@@ -51,7 +51,7 @@ spark.sparkContext.setLogLevel('WARN')
 spark.sparkContext.setLogLevel('ERROR')
 
 # raw_data = 's3a://raw-bronze/landing/p2p_transfers/*.csv'
-raw_data = "s3a://raw-bronze/landing/p2p_transfers/chunk_1.csv"
+raw_data = "s3a://raw-bronze/landing/p2p_transfers/chunk_2.csv"
 dlq_data = 's3a://raw-bronze/dlq/dlq_transfers/'
 
 # spark.sql (" DROP TABLE IF EXISTS demo.p2p_transfers")
