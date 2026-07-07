@@ -1,11 +1,24 @@
+import os
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from config.env import (
+    iceberg_db_password,
+    iceberg_warehouse,
+    minio_access_key,
+    minio_endpoint,
+    minio_secret_key,
+)
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
-import os
-# .config("spark.sql.extensions", "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions") \ ЭТО К СПАРКСЕССИИ.БИЛДЕР, А НЕ КОНФИГУРАЦИЯ КАТАЛОГА
-# .config("spark.jars.packages", ",".join(ICEBERG_PACKAGES)) \ ЕСЛИ ХОТИТЕ К АИРФЛОУ ПОДКЛЮЧИТЬ
-minio_access_key = os.getenv("AWS_ACCESS_KEY_ID", "admin")
-minio_secret_key = os.getenv("AWS_SECRET_ACCESS_KEY", "adminadmin")
-DB_PASS = "airflow"
+
+minio_access_key = minio_access_key()
+minio_secret_key = minio_secret_key()
+DB_PASS = iceberg_db_password()
 
 ICEBERG_PACKAGES = [
     "org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.5.2",
@@ -23,10 +36,10 @@ spark = SparkSession.builder \
     .config("spark.sql.catalog.demo.type", "jdbc") \
     .config("spark.sql.catalog.demo.uri", "jdbc:postgresql://postgres:5432/airflow") \
     .config("spark.sql.catalog.demo.jdbc.user", "airflow") \
-    .config("spark.sql.catalog.demo.warehouse", "s3a://raw-bronze/warehouse") \
+    .config("spark.sql.catalog.demo.warehouse", iceberg_warehouse()) \
     .config("spark.sql.catalog.demo.io-impl", "org.apache.iceberg.hadoop.HadoopFileIO") \
     \
-    .config("spark.hadoop.fs.s3a.endpoint", "http://minio:9000") \
+    .config("spark.hadoop.fs.s3a.endpoint", minio_endpoint()) \
     .config("spark.hadoop.fs.s3a.access.key", minio_access_key) \
     .config("spark.hadoop.fs.s3a.secret.key", minio_secret_key ) \
     .config("spark.hadoop.fs.s3a.path.style.access", "true") \
@@ -36,8 +49,8 @@ spark = SparkSession.builder \
 
 print('iceberg is already used')
 
-# spark.sql("""DROP TABLE IF EXISTS demo.p2p_transfers""")
-# spark.sql("""DROP TABLE IF EXISTS demo.dlq_transfers""")
+spark.sql("""DROP TABLE IF EXISTS demo.p2p_transfers""")
+spark.sql("""DROP TABLE IF EXISTS demo.dlq_transfers""")
 
 spark.sql("""
     CREATE TABLE IF NOT EXISTS demo.p2p_transfers (

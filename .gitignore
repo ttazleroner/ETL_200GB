@@ -6,3 +6,4 @@ generate_fake_data.py
 tempCodeRunnerFile.py
 .csv
 reset_iceberg.py
+.__pycache__

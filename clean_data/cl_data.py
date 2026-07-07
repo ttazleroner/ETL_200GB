@@ -1,13 +1,25 @@
 import os
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from config.env import (
+    iceberg_db_password,
+    iceberg_warehouse,
+    minio_access_key,
+    minio_endpoint,
+    minio_secret_key,
+)
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 
-MINIO_ACCES = os.getenv('AWS_ACCESS_KEY_ID')
-MINIO_SECRET = os.getenv('MINIO_PASSWORD')
-DB_PASS = os.getenv('ICEBERG_DB_PASS')
-
-
-
+MINIO_ACCESS = minio_access_key()
+MINIO_SECRET = minio_secret_key()
+DB_PASS = iceberg_db_password()
+WAREHOUSE = iceberg_warehouse()
 spark = SparkSession.builder \
     .appName('cleandata') \
     .config('spark.driver.memory', '1500m') \
@@ -24,11 +36,11 @@ spark = SparkSession.builder \
     .config("spark.sql.catalog.demo.uri", "jdbc:postgresql://postgres:5432/airflow") \
     .config("spark.sql.catalog.demo.jdbc.user", "airflow") \
     .config("spark.sql.catalog.demo.jdbc.password", DB_PASS) \
-    .config("spark.sql.catalog.demo.warehouse", "s3a://raw-bronze/logical_dlq/warehouse") \
+    .config("spark.sql.catalog.demo.warehouse", WAREHOUSE) \
     .config("spark.sql.extensions", "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions") \
-    .config("spark.hadoop.fs.s3a.endpoint", "http://minio:9000") \
-    .config("spark.hadoop.fs.s3a.access.key", "slavakoder") \
-    .config("spark.hadoop.fs.s3a.secret.key", "slavakoder") \
+    .config("spark.hadoop.fs.s3a.endpoint", minio_endpoint()) \
+    .config("spark.hadoop.fs.s3a.access.key", MINIO_ACCESS) \
+    .config("spark.hadoop.fs.s3a.secret.key", MINIO_SECRET) \
     .config("spark.hadoop.fs.s3a.path.style.access", "true") \
     .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem") \
     .config("spark.jars.packages", "org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.5.2,org.apache.hadoop:hadoop-aws:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.262,org.postgresql:postgresql:42.6.0") \
@@ -39,7 +51,7 @@ spark.sparkContext.setLogLevel('WARN')
 spark.sparkContext.setLogLevel('ERROR')
 
 # raw_data = 's3a://raw-bronze/landing/p2p_transfers/*.csv'
-raw_data = "s3a://raw-bronze/landing/p2p_transfers/chunk_1.csv"
+raw_data = "s3a://raw-bronze/landing/p2p_transfers/chunk_2.csv"
 dlq_data = 's3a://raw-bronze/dlq/dlq_transfers/'
 
 # spark.sql (" DROP TABLE IF EXISTS demo.p2p_transfers")
@@ -107,10 +119,62 @@ for index, file_path in enumerate(files, 1):
         df_zalupa.writeTo('demo.dlq_transfers').append()
     spark.catalog.clearCache()
 spark.stop() 
-# -
+# -------------------------------------
 
-spark.sql("""
-    SELECT sender_id, tx_id, timestamp, amount
-    LAG (amount) OVER (PARTITION BY sender_id ORDER BY timestamp) AS prev_tx_amount
-FROM demo.p2p_transfers
-""")
+# spark.sql("""
+#     SELECT sender_id, tx_id, timestamp, amount
+#     LAG (amount) OVER (PARTITION BY sender_id ORDER BY timestamp) AS prev_tx_amount
+# FROM demo.p2p_transfers
+# """)
+
+# spark.sql("""
+#     SELECT users.name,
+#       SUM(transfers.amount) as total_amount
+#       FROM users
+#       INNER JOIN transfers ON users.user_id = transfers.user_id
+#       GROUP BY users.name
+# """)
+
+# spark.sql(""""
+#         SELECT users.name,
+#           COALESCE(SUM(transfers.amount), 0) as total_amount
+#           FROM users LEFT JOIN transfers ON users.user_id = transfers.user_id
+#           GROUP BY users.name
+# """)
+
+# spark.sql("""
+#     SELECT users.name,
+#         COALESCE(SUM(transfers.amount), 0) as total_amount
+#         FROM users
+#         INNER JOIN transfers ON users.user_id = transfers.user_id
+#         GROUP BY users.name
+#         HAVING SUM(transfers.amount) > 1000
+# """)
+
+# spark.sql("""
+#     SELECT users.name,
+#           SUM(transfers.amount) as total_amount
+#           FROM users
+#           INNER JOIN transfers ON users.user_id = transfers.user_id
+#           WHERE transfers.status == "success"
+#           GROUP BY users.name
+# """)
+
+# spark.sql("""
+#     SELECT users.name,
+#           currencies.currency_code,
+#           SUM(transfers.amount) as total_amount
+#           FROM users
+#           INNER JOIN transfers ON users.user_id = transfers.user_id
+#           INNER JOIN currencies ON transfers.currency_id = currencies.currency_id
+#           GROUP BY users.name, currencies.currency_code
+# """)
+
+# spark.sql("""
+#     SELECT users.name,
+#           SUM(transfers.amount) as total_amount
+#           FROM users
+#           INNER JOIN transfers ON users.user_id = transfers.user_id
+#           GROUP BY users.name
+#           ORDER BY total_amount DESC LIMIT 3
+# """)

@@ -16,9 +16,11 @@ def_args = {
 }
 
 check_table = (
-    "docker exec -e ICEBERG_DB_PASS='airflow' "
-    "-e AWS_ACCESS_KEY_ID=\"$MINIO_USER\" -e AWS_SECRET_ACCESS_KEY=\"$MINIO_PASSWORD\" "
-    "spark_single spark-submit "
+    'docker exec -i '
+    '-e ICEBERG_DB_PASS="$ICEBERG_DB_PASS" '
+    '-e AWS_ACCESS_KEY_ID="$MINIO_USER" '
+    '-e AWS_SECRET_ACCESS_KEY="$MINIO_PASSWORD" '
+    'spark_single spark-submit '
     "--packages "
     "org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.5.2,"
     "org.apache.hadoop:hadoop-aws:3.3.4,"

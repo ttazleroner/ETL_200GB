@@ -21,9 +21,10 @@ SPARK_PACKAGES = (
 
 SPARK_COMMAND = f"""
 docker exec -i \
-  -e ICEBERG_DB_PASS='airflow' \
+  -e ICEBERG_DB_PASS="$ICEBERG_DB_PASS" \
   -e AWS_ACCESS_KEY_ID="$MINIO_USER" \
   -e AWS_SECRET_ACCESS_KEY="$MINIO_PASSWORD" \
+  -e CLICKHOUSE_PASSWORD="$CLICKHOUSE_PASSWORD" \
   spark_single spark-submit --packages {SPARK_PACKAGES} /home/jovyan/work/kafka/streaming_kafka.py
 """
 
