@@ -49,8 +49,8 @@ spark = SparkSession.builder \
 
 print('iceberg is already used')
 
-# spark.sql("""DROP TABLE IF EXISTS demo.p2p_transfers""")
-# spark.sql("""DROP TABLE IF EXISTS demo.dlq_transfers""")
+spark.sql("""DROP TABLE IF EXISTS demo.p2p_transfers""")
+spark.sql("""DROP TABLE IF EXISTS demo.dlq_transfers""")
 
 spark.sql("""
     CREATE TABLE IF NOT EXISTS demo.p2p_transfers (

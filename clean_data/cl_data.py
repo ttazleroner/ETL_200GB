@@ -119,10 +119,62 @@ for index, file_path in enumerate(files, 1):
         df_zalupa.writeTo('demo.dlq_transfers').append()
     spark.catalog.clearCache()
 spark.stop() 
-# -
+# -------------------------------------
 
-spark.sql("""
-    SELECT sender_id, tx_id, timestamp, amount
-    LAG (amount) OVER (PARTITION BY sender_id ORDER BY timestamp) AS prev_tx_amount
-FROM demo.p2p_transfers
-""")
+# spark.sql("""
+#     SELECT sender_id, tx_id, timestamp, amount
+#     LAG (amount) OVER (PARTITION BY sender_id ORDER BY timestamp) AS prev_tx_amount
+# FROM demo.p2p_transfers
+# """)
+
+# spark.sql("""
+#     SELECT users.name,
+#       SUM(transfers.amount) as total_amount
+#       FROM users
+#       INNER JOIN transfers ON users.user_id = transfers.user_id
+#       GROUP BY users.name
+# """)
+
+# spark.sql(""""
+#         SELECT users.name,
+#           COALESCE(SUM(transfers.amount), 0) as total_amount
+#           FROM users LEFT JOIN transfers ON users.user_id = transfers.user_id
+#           GROUP BY users.name
+# """)
+
+# spark.sql("""
+#     SELECT users.name,
+#         COALESCE(SUM(transfers.amount), 0) as total_amount
+#         FROM users
+#         INNER JOIN transfers ON users.user_id = transfers.user_id
+#         GROUP BY users.name
+#         HAVING SUM(transfers.amount) > 1000
+# """)
+
+# spark.sql("""
+#     SELECT users.name,
+#           SUM(transfers.amount) as total_amount
+#           FROM users
+#           INNER JOIN transfers ON users.user_id = transfers.user_id
+#           WHERE transfers.status == "success"
+#           GROUP BY users.name
+# """)
+
+# spark.sql("""
+#     SELECT users.name,
+#           currencies.currency_code,
+#           SUM(transfers.amount) as total_amount
+#           FROM users
+#           INNER JOIN transfers ON users.user_id = transfers.user_id
+#           INNER JOIN currencies ON transfers.currency_id = currencies.currency_id
+#           GROUP BY users.name, currencies.currency_code
+# """)
+
+# spark.sql("""
+#     SELECT users.name,
+#           SUM(transfers.amount) as total_amount
+#           FROM users
+#           INNER JOIN transfers ON users.user_id = transfers.user_id
+#           GROUP BY users.name
+#           ORDER BY total_amount DESC LIMIT 3
+# """)
