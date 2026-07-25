@@ -141,6 +141,13 @@ services:
         hard: 262144
     volumes:
       - clickhouse_data:/var/lib/clickhouse
+    
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
 
 volumes:
   clickhouse_data:
+

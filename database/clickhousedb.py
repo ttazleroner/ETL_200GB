@@ -14,10 +14,10 @@ client = clickhouse_connect.get_client(
     host='clickhouse',
     port=8123,
     username=os.getenv('CLICKHOUSE_USER', 'admin'),
-    password=clickhouse_password(),
+    password=os.getenv('CLICKHOUSE_PASSWORD')
 )
 
-# client.command("DROP TABLE IF EXISTS default.windowed_stats_ch")
+client.command("DROP TABLE IF EXISTS default.windowed_stats_ch")
 
 client.command("""
     CREATE TABLE IF NOT EXISTS default.windowed_stats_ch (
