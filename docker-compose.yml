@@ -21,6 +21,10 @@ services:
       - POSTGRES_USER=airflow
       - POSTGRES_PASSWORD=airflow
       - POSTGRES_DB=airflow
+    ports:
+      - 5432:5432
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
 
   airflow-webserver:
     image: apache/airflow:2.10.2
@@ -154,4 +158,4 @@ services:
 
 volumes:
   clickhouse_data:
-
+  postgres_data:
