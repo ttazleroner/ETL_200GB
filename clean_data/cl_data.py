@@ -23,12 +23,13 @@ WAREHOUSE = iceberg_warehouse()
 spark = SparkSession.builder \
     .appName('cleandata') \
     .config('spark.driver.memory', '1500m') \
-    .config('spark.executor.memory', '5g') \
-    .config("spark.memory.offHeap.size", "3g") \
+    .config('spark.executor.memory', '6g') \
+    .config("spark.memory.offHeap.size", "4g") \
     .config("spark.memory.offHeap.enabled", "true") \
     .config('spark.sql.shuffle.partitions', '48') \
     .config('spark.shuffle.partitions', '48') \
     .config('spark.network.timeout', '400s') \
+    .config("spark.sql.files.ignoreMissingFiles", "true") \
     .config('spark.executor.heartbeatInterval', '60s') \
     .config('spark.executor.cores', '6') \
     .config("spark.sql.catalog.demo", "org.apache.iceberg.spark.SparkCatalog") \
@@ -50,8 +51,8 @@ print('запускаемся')
 spark.sparkContext.setLogLevel('WARN')
 spark.sparkContext.setLogLevel('ERROR')
 
-# raw_data = 's3a://raw-bronze/landing/p2p_transfers/*.csv'
-raw_data = "s3a://raw-bronze/landing/p2p_transfers/chunk_2.csv"
+raw_data = 's3a://raw-bronze/landing/p2p_transfers/*.csv'
+# raw_data = "s3a://raw-bronze/landing/p2p_transfers/chunk_10.csv"
 dlq_data = 's3a://raw-bronze/dlq/dlq_transfers/'
 
 # spark.sql (" DROP TABLE IF EXISTS demo.p2p_transfers")
@@ -64,7 +65,7 @@ Path = spark._jvm.org.apache.hadoop.fs.Path
 FileSystem = spark._jvm.org.apache.hadoop.fs.FileSystem
 URI = spark._jvm.java.net.URI
 fs = FileSystem.get(URI("s3a://raw-bronze/"), spark._jsc.hadoopConfiguration())
-status_list = fs.listStatus(Path("s3a://raw-bronze/landing/p2p_transfers/"))
+status_list = fs.listStatus(Path("s3a://raw-bronze/landing/p2p_transfers/chunk_10.csv"))
 files = [str(f.getPath()) for f in status_list if f.getPath().getName().endswith('.csv')]
 
 for index, file_path in enumerate(files, 1):
@@ -74,8 +75,6 @@ for index, file_path in enumerate(files, 1):
     .withColumn('sender_id', F.regexp_replace(F.col('sender_id'), r'\s+', ''))
     .withColumn('receiver_id', F.regexp_replace(F.col('receiver_id'), r'\s+', ''))
     .withColumn('amount', F.regexp_replace(F.col('amount'), ',', '.').cast('double'))
-    .withColumn('timestamp', F.coalesce(F.col('timestamp'), F.lit('1970-01-01 00:00:00')))
-    .withColumn('status', F.coalesce(F.col('status'), F.lit('Unknown')))
     .withColumn('status', F.trim(F.col('status')))
     )
 
@@ -109,7 +108,7 @@ for index, file_path in enumerate(files, 1):
         F.col("timestamp").cast("timestamp")
     )
 
-    df_zalupa = df_zalupa.coalesce(1)
+    df_zalupa = df_zalupa.coalesce(3)
     df_final = df_final.repartition(2).sortWithinPartitions('status')
     if index == 1:
         df_final.writeTo('demo.p2p_transfers').createOrReplace()

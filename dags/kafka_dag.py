@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 def_args = {
     'owner': 'главный',
     'start_date': datetime(2023, 1, 1),
-    'retries': 1,
+    'retries': 2,
     'retry_delay': timedelta(minutes=1)
 }
 
