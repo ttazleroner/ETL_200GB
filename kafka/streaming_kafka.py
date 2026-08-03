@@ -80,7 +80,7 @@ spark = SparkSession.builder \
 spark.sparkContext.setLogLevel("WARN")
 spark.sparkContext.setLogLevel("ERROR")
 
-spark.sql("""DROP TABLE IF EXISTS demo.db.windowed_stats""" )
+# spark.sql("""DROP TABLE IF EXISTS demo.db.windowed_stats""" )
 
 spark.sql("""
     CREATE TABLE IF NOT EXISTS demo.db.windowed_stats (
@@ -163,7 +163,7 @@ def write_to_iceberg_and_clickhouse(batch_df, batch_id):
 
 query = df_winda.writeStream \
     .foreachBatch(write_to_iceberg_and_clickhouse) \
-    .outputMode("append") \
+    .outputMode("update") \
     .option("checkpointLocation", checkpoints) \
     .trigger(availableNow=True) \
     .start()
